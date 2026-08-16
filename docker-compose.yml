@@ -1,0 +1,87 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: linkplease_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: linkplease_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d linkplease_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: linkplease_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: linkplease_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/linkplease_db
+      - REDIS_URL=redis://redis:6379/0
+      - PSEUDOGRAM_BASE_URL=https://pseudogram-api.onrender.com
+      - PSEUDOGRAM_API_KEY=${PSEUDOGRAM_API_KEY:-}
+      - VERIFY_WEBHOOK_SIGNATURE=${VERIFY_WEBHOOK_SIGNATURE:-false}
+      - MAX_RETRIES=5
+      - RATE_LIMIT_PER_MINUTE=10
+      - RATE_LIMIT_WINDOW_SECONDS=60
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: linkplease_worker
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/linkplease_db
+      - REDIS_URL=redis://redis:6379/0
+      - PSEUDOGRAM_BASE_URL=https://pseudogram-api.onrender.com
+      - PSEUDOGRAM_API_KEY=${PSEUDOGRAM_API_KEY:-}
+      - MAX_RETRIES=5
+      - RATE_LIMIT_PER_MINUTE=10
+      - RATE_LIMIT_WINDOW_SECONDS=60
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app worker --loglevel=info -c 2
+
+volumes:
+  pgdata:
+  redisdata:

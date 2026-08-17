@@ -24,5 +24,5 @@ COPY . .
 # Expose FastAPI application port
 EXPOSE 8000
 
-# Default command starts FastAPI web server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start Celery worker in background and FastAPI in foreground
+CMD ["sh", "-c", "celery -A app.workers.celery_app worker --loglevel=info -c 2 --pool=threads & exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

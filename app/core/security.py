@@ -18,19 +18,19 @@ def verify_webhook_signature(
     Uses constant-time comparison to prevent timing attacks.
     """
     settings = get_settings()
-    
-    # If signature verification is globally disabled (e.g. dev/testing without key), bypass
-    if not settings.VERIFY_WEBHOOK_SIGNATURE:
+
+    # If no signature provided
+    if not signature_header:
+        if settings.VERIFY_WEBHOOK_SIGNATURE:
+            logger.warning("Missing X-PseudoGram-Signature header on webhook request.")
+            return False
         return True
 
+    # If signature IS provided, always verify it strictly (Part B)
     raw_key = secret_key or settings.PSEUDOGRAM_API_KEY
     api_key = raw_key.strip().strip("'\"") if raw_key else ""
     if not api_key:
-        logger.warning("Webhook signature verification is enabled, but PSEUDOGRAM_API_KEY is not configured.")
-        return False
-
-    if not signature_header:
-        logger.warning("Missing X-PseudoGram-Signature header on webhook request.")
+        logger.warning("Webhook signature received, but PSEUDOGRAM_API_KEY is not configured.")
         return False
 
     # Normalize header and extract hex digest (handles sha256=, SHA256=, whitespace, and upper/lower hex)

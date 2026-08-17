@@ -32,18 +32,19 @@ def verify_webhook_signature(
         logger.warning("Missing X-PseudoGram-Signature header on webhook request.")
         return False
 
-    # Check prefix
-    if signature_header.startswith("sha256="):
-        provided_digest = signature_header[7:]
+    # Normalize header and extract hex digest (handles sha256=, SHA256=, whitespace, and upper/lower hex)
+    header_clean = signature_header.strip()
+    if header_clean.lower().startswith("sha256="):
+        provided_digest = header_clean[7:].strip().lower()
     else:
-        provided_digest = signature_header
+        provided_digest = header_clean.strip().lower()
 
     # Calculate expected HMAC-SHA256 digest
     expected_digest = hmac.new(
         key=api_key.encode("utf-8"),
         msg=raw_body,
         digestmod=hashlib.sha256
-    ).hexdigest()
+    ).hexdigest().lower()
 
     # Constant-time comparison
     is_valid = hmac.compare_digest(expected_digest, provided_digest)

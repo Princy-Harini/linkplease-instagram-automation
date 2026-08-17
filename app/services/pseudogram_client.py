@@ -39,7 +39,8 @@ class PseudoGramClient:
     ):
         settings = get_settings()
         self.base_url = (base_url or settings.PSEUDOGRAM_BASE_URL).rstrip("/")
-        self.api_key = api_key or settings.PSEUDOGRAM_API_KEY
+        raw_key = api_key or settings.PSEUDOGRAM_API_KEY
+        self.api_key = raw_key.strip().strip("'\"") if raw_key else ""
         self.timeout = timeout
 
     def _get_headers(self, idempotency_key: Optional[str] = None) -> Dict[str, str]:

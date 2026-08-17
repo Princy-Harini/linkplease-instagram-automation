@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -19,6 +20,13 @@ class Settings(BaseSettings):
     # Mock PseudoGram API
     PSEUDOGRAM_BASE_URL: str = "https://pseudogram-api.onrender.com"
     PSEUDOGRAM_API_KEY: str = ""
+
+    @field_validator("PSEUDOGRAM_API_KEY", "PSEUDOGRAM_BASE_URL", mode="before")
+    @classmethod
+    def clean_str_config(cls, v: str) -> str:
+        if isinstance(v, str):
+            return v.strip().strip("'\"")
+        return v
 
     # Webhook Security
     VERIFY_WEBHOOK_SIGNATURE: bool = False

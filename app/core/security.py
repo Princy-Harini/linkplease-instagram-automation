@@ -23,7 +23,8 @@ def verify_webhook_signature(
     if not settings.VERIFY_WEBHOOK_SIGNATURE:
         return True
 
-    api_key = secret_key or settings.PSEUDOGRAM_API_KEY
+    raw_key = secret_key or settings.PSEUDOGRAM_API_KEY
+    api_key = raw_key.strip().strip("'\"") if raw_key else ""
     if not api_key:
         logger.warning("Webhook signature verification is enabled, but PSEUDOGRAM_API_KEY is not configured.")
         return False
